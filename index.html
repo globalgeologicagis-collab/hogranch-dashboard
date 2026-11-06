@@ -581,6 +581,15 @@ table.pop td.v{color:var(--paper);font-variant-numeric:tabular-nums}
 .legend .lg-cls .sw{width:11px;height:9px}
 .legend .lg-cls img{width:12px;height:12px;object-fit:contain;flex:0 0 auto}
 .pop-scroll{max-height:300px;overflow-y:auto}
+.flow-cv{position:absolute;left:0;top:0;pointer-events:none}
+.legend .lg-viz-row{display:flex;align-items:center;gap:8px;margin:1px 0 4px 22px}
+.legend .lg-viz{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border:1px solid var(--slate);
+  border-radius:3px;background:var(--ink-soft);color:var(--paper-dim);font-size:11px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.legend .lg-viz:hover{border-color:#43c274;color:var(--paper)}
+.legend .lg-viz.on{background:#1f5a37;border-color:#43c274;color:#eafff1}
+.legend .lg-viz:focus-visible{outline:2px solid var(--brass-lit);outline-offset:1px}
+.legend .vz-note{font-size:11px;color:var(--slate-soft)}
 .legend .lg-zoom{margin-left:6px;flex:0 0 auto;padding:1px 7px;border:1px solid var(--slate);border-radius:3px;
   font-size:10.5px;color:var(--paper-dim);background:var(--ink-soft);cursor:pointer;white-space:nowrap}
 .legend .lg-zoom:hover{border-color:var(--brass);color:var(--paper)}
@@ -659,7 +668,7 @@ table.pop td.v{color:var(--paper);font-variant-numeric:tabular-nums}
     <button id="tabDrill" role="tab" aria-controls="paneDrill" aria-selected="false" tabindex="-1">Drill Status</button>
   </nav>
   <div class="stamp">
-    <div class="v num">Version 2.1</div>
+    <div class="v num">Version 2.2</div>
     <div class="d num" id="today"></div>
   </div>
 </header>
@@ -1424,8 +1433,8 @@ function buildPermit(){
 /* opacity: each slider scales its layer's own base style */
 function setBioOp(d){
   if(!pBio[d]) return;
-  var f = opGet('p','bio') * opGet('bio', d);
-  pBio[d].setStyle({ opacity:BIO_ST.opacity * f, fillOpacity:BIO_ST.fillOpacity * f });
+  var f = opGet('p','bio') * opGet('bio', d) * (bioViz ? .35 : 1);
+  pBio[d].setStyle({ opacity:BIO_ST.opacity * f, fillOpacity:BIO_ST.fillOpacity * (bioViz ? 0 : 1) * f });
 }
 function setSubOp(id, k){
   var l = sLyr[id] && sLyr[id][k];
@@ -1472,6 +1481,7 @@ function pCount(id){
 
 /* add or drop the permitting layers */
 function applyPermit(){
+  if(typeof flowSync === 'function' && FLOW.canvas) setTimeout(flowSync, 0);
   var on = permitOn;
   if(on) buildPermit();
   if(pBuilt){
@@ -2082,6 +2092,148 @@ function liveLegendHTML(){
 }
 function liveAnyOn(){ return LIVE.some(function(S){ return S.on; }); }
 
+/* ---------- biological field surveys: flow view (v2.2) ---------------------
+   "Visualize" in the legend animates every survey line in the direction it
+   was recorded: the order of the GPS points from first to last. The source
+   files carry no separate heading or bearing field, so the point order is
+   the direction shown. Glowing streaks in each survey-date colour run along
+   the lines, their light adding up where lines overlap so the busiest
+   corridors shine brightest; the static lines dim underneath. Lines follow the date switches
+   and the layer's opacity. A viewer who has asked the system for reduced
+   motion gets the streaks standing still, which still show direction.   */
+var bioViz = false;
+var FLOW = { canvas:null, ctx:null, paths:null, zoom:null, raf:0, t0:0, hidden:false };
+var FLOW_GAP = 74, FLOW_SPEED = 42, FLOW_TAIL = 46, FLOW_MAX = 2600;
+/* the head of each streak is its survey colour lifted towards white */
+var FLOW_HEAD = {};
+function flowHead(col){
+  if(FLOW_HEAD[col]) return FLOW_HEAD[col];
+  var c = col.charAt(0) === '#' ? [parseInt(col.substr(1,2),16), parseInt(col.substr(3,2),16), parseInt(col.substr(5,2),16)] : [255,255,255];
+  return (FLOW_HEAD[col] = 'rgb(' + c.map(function(v){ return Math.round(v + (255 - v) * .55); }).join(',') + ')');
+}
+var FLOW_STILL = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function flowLines(g){
+  /* every recorded line as a list of [lng, lat]: line parts and outer rings */
+  if(!g) return [];
+  if(g.type === 'LineString') return [g.coordinates];
+  if(g.type === 'MultiLineString') return g.coordinates;
+  if(g.type === 'Polygon') return [g.coordinates[0]];
+  if(g.type === 'MultiPolygon') return g.coordinates.map(function(p){ return p[0]; });
+  return [];
+}
+function flowProject(){
+  FLOW.zoom = map.getZoom();
+  FLOW.paths = [];
+  PERMIT.bio.features.forEach(function(f){
+    var d = f.properties._dt;
+    flowLines(f.geometry).forEach(function(line){
+      if(line.length < 2) return;
+      var pts = [], cum = [0], x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      line.forEach(function(c, i){
+        var p = map.latLngToLayerPoint([c[1], c[0]]);
+        if(i){ var q = pts[pts.length-1], dl = Math.hypot(p.x - q.x, p.y - q.y); if(dl < .5) return; cum.push(cum[cum.length-1] + dl); }
+        pts.push(p);
+        if(p.x < x0) x0 = p.x; if(p.y < y0) y0 = p.y; if(p.x > x1) x1 = p.x; if(p.y > y1) y1 = p.y;
+      });
+      if(pts.length > 1) FLOW.paths.push({ d:d, pts:pts, cum:cum, len:cum[cum.length-1], bb:[x0,y0,x1,y1] });
+    });
+  });
+}
+function flowAt(P, s){
+  /* point and heading at distance s along a path */
+  var c = P.cum, lo = 0, hi = c.length - 1;
+  while(hi - lo > 1){ var m = (lo + hi) >> 1; if(c[m] <= s) lo = m; else hi = m; }
+  var a = P.pts[lo], b = P.pts[hi], seg = c[hi] - c[lo] || 1, k = (s - c[lo]) / seg;
+  return { x:a.x + (b.x - a.x) * k, y:a.y + (b.y - a.y) * k, ang:Math.atan2(b.y - a.y, b.x - a.x) };
+}
+function flowVisible(){ return bioViz && permitOn && pBuilt && !state.pOff.bio; }
+function flowFrame(now){
+  FLOW.raf = 0;
+  if(!flowVisible()){ flowClear(); return; }
+  if(FLOW.zoom !== map.getZoom() || !FLOW.paths) flowProject();
+  var cv = FLOW.canvas, ctx = FLOW.ctx, sz = map.getSize(), dpr = window.devicePixelRatio || 1;
+  if(cv.width !== sz.x * dpr || cv.height !== sz.y * dpr){
+    cv.width = sz.x * dpr; cv.height = sz.y * dpr; cv.style.width = sz.x + 'px'; cv.style.height = sz.y + 'px';
+  }
+  var org = map.containerPointToLayerPoint([0, 0]);
+  L.DomUtil.setPosition(cv, org);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, sz.x, sz.y);
+  if(FLOW.hidden) return flowNext();
+  var t = FLOW_STILL ? 0 : (now - FLOW.t0) / 1000;
+  var a = opGet('p', 'bio'), n = 0;
+  var vx0 = org.x - 20, vy0 = org.y - 20, vx1 = org.x + sz.x + 20, vy1 = org.y + sz.y + 20;
+  /* keep the count of arrowheads in hand when many long lines are in view */
+  var total = 0;
+  FLOW.paths.forEach(function(P){
+    if(state.bioOff[P.d] || P.bb[2] < vx0 || P.bb[0] > vx1 || P.bb[3] < vy0 || P.bb[1] > vy1) return;
+    total += P.len;
+  });
+  var gap = Math.max(FLOW_GAP, total / FLOW_MAX);
+  /* light adds up where streaks cross, so busy corridors glow brightest */
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.globalCompositeOperation = 'lighter';
+  var BANDS = [[.10, 1.2], [.22, 1.8], [.42, 2.4], [.75, 3]];   /* tail to head: alpha, width */
+  FLOW.paths.forEach(function(P){
+    if(state.bioOff[P.d] || P.bb[2] < vx0 || P.bb[0] > vx1 || P.bb[3] < vy0 || P.bb[1] > vy1) return;
+    var col = BIO_COL[P.d], head = flowHead(col), f = a * opGet('bio', P.d);
+    /* a faint glow along the whole line marks the corridor */
+    ctx.globalAlpha = .10 * f; ctx.strokeStyle = col; ctx.lineWidth = 3;
+    ctx.beginPath();
+    P.pts.forEach(function(p, i){ if(i) ctx.lineTo(p.x - org.x, p.y - org.y); else ctx.moveTo(p.x - org.x, p.y - org.y); });
+    ctx.stroke();
+    var off = (t * FLOW_SPEED) % gap;
+    for(var s = off; s <= P.len; s += gap){
+      var h = flowAt(P, s), hx = h.x - org.x, hy = h.y - org.y;
+      if(hx < -60 || hy < -60 || hx > sz.x + 60 || hy > sz.y + 60) continue;
+      /* the streak follows the line's own bends, brightening towards its head */
+      var s0 = Math.max(0, s - FLOW_TAIL), seg = (s - s0) / BANDS.length;
+      for(var b = 0; b < BANDS.length; b++){
+        var a0 = s0 + seg * b, a1 = a0 + seg;
+        ctx.globalAlpha = BANDS[b][0] * f; ctx.lineWidth = BANDS[b][1];
+        ctx.strokeStyle = (b === BANDS.length - 1) ? head : col;
+        ctx.beginPath();
+        for(var q = a0; q <= a1 + .01; q += Math.max(2, seg / 4)){
+          var pt = flowAt(P, Math.min(q, a1));
+          if(q === a0) ctx.moveTo(pt.x - org.x, pt.y - org.y); else ctx.lineTo(pt.x - org.x, pt.y - org.y);
+        }
+        ctx.stroke();
+      }
+      /* soft bright head */
+      var g = ctx.createRadialGradient(hx, hy, 0, hx, hy, 6);
+      g.addColorStop(0, head); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = .9 * f; ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(hx, hy, 6, 0, 6.2832); ctx.fill();
+      n++;
+    }
+  });
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  flowNext();
+}
+function flowNext(){ if(!FLOW_STILL && !FLOW.raf) FLOW.raf = requestAnimationFrame(flowFrame); }
+function flowClear(){
+  if(FLOW.raf){ cancelAnimationFrame(FLOW.raf); FLOW.raf = 0; }
+  if(FLOW.ctx) FLOW.ctx.clearRect(0, 0, FLOW.canvas.width, FLOW.canvas.height);
+}
+function flowSync(){
+  if(!FLOW.canvas){
+    var pane = map.createPane('flowPane');
+    pane.style.zIndex = 450; pane.style.pointerEvents = 'none';
+    FLOW.canvas = L.DomUtil.create('canvas', 'flow-cv', pane);
+    FLOW.ctx = FLOW.canvas.getContext('2d');
+    FLOW.t0 = performance.now();
+    map.on('zoomstart', function(){ FLOW.hidden = true; if(FLOW.ctx) FLOW.ctx.clearRect(0, 0, FLOW.canvas.width, FLOW.canvas.height); });
+    map.on('zoomend viewreset', function(){ FLOW.hidden = false; FLOW.paths = null; flowSync(); });
+    map.on('move resize', function(){ if(FLOW_STILL && flowVisible()) requestAnimationFrame(flowFrame); });
+  }
+  BIO_DATES.forEach(setBioOp);
+  if(flowVisible()){ if(!FLOW.raf) FLOW.raf = requestAnimationFrame(flowFrame); }
+  else flowClear();
+}
+function setBioViz(on){ bioViz = on; flowSync(); refreshPanels(); }
+
 /* ---------- one place that owns the drawing order -------------------------
    claims, then the tenement outline, then the cadastral grid coarse to fine,
    then the permitting layers: broad blocks, linework, points last, so what
@@ -2413,6 +2565,14 @@ function permitLegendHTML(){
          cbHTML(!off, D.name)+glyph+'<span class="nm">'+esc(D.name)+'</span>'+cx+
          opHTML('p', D.id, D.name)+'</div>';
 
+    if(D.id === 'bio' && !off){
+      h += '<div class="lg-viz-row"><button class="lg-viz'+(bioViz?' on':'')+'" data-bioviz="1" aria-pressed="'+
+           (bioViz?'true':'false')+'" title="Animate each survey line in the direction it was recorded">'+
+           '<svg width="12" height="10" viewBox="0 0 24 20" fill="none" stroke="currentColor" stroke-width="2.4" '+
+           'stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h14M12 2l4 4-4 4M22 14H8M12 10l-4 4 4 4"/></svg>'+
+           (bioViz ? 'Visualizing flow' : 'Visualize')+'</button>'+
+           (bioViz ? '<span class="vz-note">by recorded direction</span>' : '')+'</div>';
+    }
     if(D.id === 'bio' && !off && bioOpen){
       h += '<div class="lg-sub">';
       /* most recent survey first, matching its place on top of the map */
@@ -2613,6 +2773,7 @@ function legendHit(t){
   if(ob){ openOpPop(ob); return true; }
   /* the caret sits inside its row too, so it has to be tested first */
   if(t.closest('[data-biocol]')){ bioOpen = !bioOpen; drawLegend(); fitPanel(); return true; }
+  if(t.closest('[data-bioviz]')){ setBioViz(!bioViz); return true; }
   var sc = t.closest('[data-scol]');
   if(sc){ sOpen[sc.dataset.scol] = !sOpen[sc.dataset.scol]; drawLegend(); fitPanel(); return true; }
   if(t.closest('[data-pall]')){
@@ -2936,6 +3097,7 @@ document.getElementById('resetAll').onclick = function(){
   state.off = { grp:{}, clm:{}, aoi:{} };
   state.pOff = {}; state.bioOff = {}; state.tOff = {};
   state.sOff = { cult:{}, bsa:{}, noiA:{}, noiG:{} }; state.lOff = {}; state.gOff = {};
+  bioViz = false; flowSync();
   state.op = { grp:{}, clm:{}, aoi:{}, p:{}, bio:{}, t:{}, s:{}, l:{}, g:{}, v:{} };   /* every layer back to full */
   state.trs = { tw:'', sec:'', qq:'' }; trsBuildSet(); trsRefresh();
   applyPermit(); applyTRS(); applyLand(); applyGrav();
