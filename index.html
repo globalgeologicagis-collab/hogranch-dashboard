@@ -1024,6 +1024,34 @@ table.pop td.v{color:var(--paper);font-variant-numeric:tabular-nums}
 #siQ{flex:1 1 auto;background:none;border:0;outline:0;color:var(--paper);padding:7px 0;font-size:14px;letter-spacing:.02em}
 .trsrow.si-f{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .trsrow.si-f .gsel{margin-bottom:0;min-width:0}
+
+/* trace focus window (v2.6.2) */
+.sf{position:absolute;inset:0;z-index:1200;display:flex;flex-direction:column;background:#12161b;outline:none}
+.sf[hidden]{display:none}
+.sf-hd{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:8px 12px 8px 16px;background:rgba(24,29,35,.98);border-bottom:1px solid #ffd22e}
+.sf-hd .k{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:#ffd22e}
+.sf-t{font-size:19px;font-weight:600;color:var(--paper)}
+.sf-s{flex:1 1 auto;font-size:13px;color:var(--slate-soft);min-width:0}
+.sf-b{display:flex;flex-wrap:wrap;gap:5px}
+.sf-b button{padding:5px 10px;border:1px solid var(--slate);border-radius:2px;background:none;color:var(--paper-dim);cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.sf-b button:hover:not(:disabled){border-color:#ffd22e;color:var(--paper)}
+.sf-b button.on{background:rgba(255,210,46,.14);border-color:#ffd22e;color:var(--paper)}
+.sf-b button:disabled{opacity:.4;cursor:default}
+.sf-b .sf-exit{background:#ffd22e;border-color:#ffd22e;color:#191d23}
+.sf-b .sf-exit:hover{background:#ffe066;color:#191d23}
+.sf-body{position:relative;flex:1 1 auto;min-height:0}
+.sf-cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+.sf-tip{position:absolute;pointer-events:none;padding:6px 9px;background:rgba(24,29,35,.96);border:1px solid #4a535e;border-radius:2px;font-size:13px;color:var(--paper-dim);line-height:1.45;white-space:nowrap;z-index:2}
+.sf-tip b{color:var(--paper)}
+.sf-card{position:absolute;top:12px;right:12px;width:320px;max-width:calc(100% - 24px);padding:2px 10px 10px;background:rgba(24,29,35,.97);border:var(--hair);border-left:3px solid #ffd22e;border-radius:2px;box-shadow:0 4px 18px rgba(0,0,0,.5);z-index:2}
+.sf-card[hidden]{display:none}
+.sf-cx{position:absolute;top:4px;right:6px;font-size:20px;line-height:1;color:var(--slate-soft);background:none;cursor:pointer}
+.sf-cx:hover{color:var(--paper)}
+.sf-leg{position:absolute;left:124px;bottom:14px;margin:0;padding:6px 10px;background:rgba(24,29,35,.85);border-radius:2px}
+.sf-help{position:absolute;right:14px;bottom:14px;font-size:11.5px;color:var(--slate-soft);background:rgba(24,29,35,.7);padding:4px 8px;border-radius:2px}
+.sib{z-index:1250}
+.sf-card .pop td.v{word-break:break-word}
 </style>
 </head>
 <body>
@@ -4656,9 +4684,9 @@ function dtrPopBox(m, r){
   box.innerHTML = m._hit.pop();
   if(r && r.t3z){
     var b = document.createElement('button');
-    b.type = 'button'; b.className = 'dtr-zoom'; b.textContent = 'Zoom to trace';
-    b.title = 'Fly the 3D view to this drill trace (or double-click the trace)';
-    b.addEventListener('click', function(e){ e.stopPropagation(); dtrZoom(r); });
+    b.type = 'button'; b.className = 'dtr-zoom'; b.textContent = 'Zoom to trace (3D)';
+    b.title = 'Open this drill trace on its own (double-click the trace to fly the 3D view to it)';
+    b.addEventListener('click', function(e){ e.stopPropagation(); sfOpen(r.id); });
     box.appendChild(b);
   }
   return box;
@@ -6569,7 +6597,8 @@ function siPop(id, x){
     x[4] ? ['Peak Au', '<span class="num">' + esc(x[4]) + '</span>'] : null,
     h.eoh ? ['End of hole', '<span class="num">' + siN(h.eoh) + ' ft</span>'] : null,
     ['Source', esc(h.f)]
-  ]) + '<button type="button" class="si-pbtn" data-si-big="' + esc(id) + '" data-si-k="' + h.si.indexOf(x) + '">Blow-up view: diagram and table</button>';
+  ]) + '<button type="button" class="si-pbtn" data-si-big="' + esc(id) + '" data-si-k="' + h.si.indexOf(x) + '">Blow-up view: diagram and table</button>' +
+       ((SF.el && !SF.el.hidden) ? '' : '<button type="button" class="si-pbtn" data-si-focus="' + esc(id) + '" data-si-k="' + h.si.indexOf(x) + '">Zoom to trace (3D)</button>');
 }
 
 /* plan view on the map: each hole's trace in grey, its intercepts in their
@@ -6781,7 +6810,7 @@ function siBig(id, selK){
         var r = siRec(SI.bigId);
         if(go.dataset.sibGo === 'solo') siSolo(SI.solo === SI.bigId ? null : SI.bigId);
         else if(go.dataset.sibGo === 'map' && r){ if(V3.on) showTab('claims'); drFocus(r); }
-        else if(go.dataset.sibGo === '3d' && r){ showTab('v3d'); HRMI3D.ready(function(){ setTimeout(function(){ dtrZoom(r); }, 300); }); }
+        else if(go.dataset.sibGo === '3d' && r){ sfOpen(SI.bigId, SI.bigK); return; }
         siBig(SI.bigId, SI.bigK);
         return;
       }
@@ -6839,6 +6868,295 @@ document.addEventListener('click', function(e){
   var b = e.target.closest('[data-si-big]');
   if(b){ e.preventDefault(); map.closePopup(); siBig(b.dataset.siBig, b.dataset.siK === '' || b.dataset.siK == null ? null : +b.dataset.siK); return; }
   if(e.target.closest('[data-si-all]')) siSolo(null);
+  var fb = e.target.closest('[data-si-focus]');
+  if(fb){ e.preventDefault(); sfOpen(fb.dataset.siFocus, fb.dataset.siK); }
+}, true);
+
+/* ---------- Trace focus window (v2.6.2) -------------------------------------
+   "Zoom to trace (3D)" opens one drill trace on its own, over the map or the
+   3D view: no basemap, terrain, claims or other holes. The trace is drawn in
+   local metres around its collar (east, north, up) with its intercepts in
+   their grade classes, the samples at or above cut-off, depth ticks, the
+   collar level as a faint grid, and a north/up gizmo. Drag to orbit, right-
+   drag (or Shift-drag) to pan, scroll or pinch to zoom toward the cursor.
+   Hovering an intercept or sample shows its grade; clicking an intercept
+   shows its details with the blow-up view. Exit or Esc returns to the view
+   underneath, which is left exactly as it was.                            */
+var SF = { el:null, cv:null, r:null, h:null, sel:null, yaw:0, pitch:20, D:100, tgt:[0, 0, 0], dir:[0, 0, -1],
+           len:1, samples:true, labels:true, drag:null, hov:null, raf:0 };
+function sfV(a, b, k){ return [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k]; }
+function sfDot(a, b){ return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+function sfNorm(a){ var l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }
+function sfCross(a, b){ return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+/* point at a down-hole depth in feet, local metres */
+function sfAt(ft){ return sfV([0, 0, 0], SF.dir, Math.min(ft * .3048, SF.len)); }
+function sfCam(){
+  var rad = Math.PI / 180, y = SF.yaw * rad, p = SF.pitch * rad;
+  var back = [Math.cos(p) * Math.sin(y), Math.cos(p) * Math.cos(y), Math.sin(p)];
+  var f = [-back[0], -back[1], -back[2]], c = sfV(SF.tgt, back, SF.D);
+  var rt = sfNorm(sfCross(f, [0, 0, 1])), up = sfCross(rt, f);
+  var W = SF.cv.clientWidth, H = SF.cv.clientHeight, F = H / (2 * Math.tan(25 * rad));
+  return { c:c, f:f, r:rt, u:up, W:W, H:H, F:F };
+}
+function sfP(C, p){
+  var v = [p[0] - C.c[0], p[1] - C.c[1], p[2] - C.c[2]], z = sfDot(v, C.f);
+  if(z < .05) return null;
+  return [C.W / 2 + sfDot(v, C.r) * C.F / z, C.H / 2 - sfDot(v, C.u) * C.F / z, z];
+}
+function sfOpen(id, k){
+  var r = siRec(id);
+  if(!r || !r.tr) return;
+  var el = sfEl(), rad = Math.PI / 180, t = r.tr;
+  SF.r = r; SF.h = SIH[id] || null; SF.sel = (k == null || k === '' ? null : +k); SF.len = t.len;
+  var hz = Math.cos(t.dip * rad);
+  SF.dir = [hz * Math.sin(t.az * rad), hz * Math.cos(t.az * rad), -Math.sin(t.dip * rad)];
+  if(SI.big) SI.big.hidden = true;
+  map.closePopup();
+  el.querySelector('.sf-t').textContent = r.id;
+  el.querySelector('.sf-s').textContent = 'Az ' + Math.round(t.az) + '\u00b0 \u00b7 Dip \u2212' + Math.round(t.dip) + '\u00b0 \u00b7 ' +
+    siN(t.len / .3048) + ' ft (' + siN(t.len) + ' m)' + (r.k && r.k[1] ? ' \u00b7 ' + r.k[1] : '') +
+    (SF.h ? ' \u00b7 ' + SF.h.si.length + ' intercept' + (SF.h.si.length === 1 ? '' : 's') : '');
+  el.querySelector('[data-sf="big"]').disabled = !SF.h;
+  el.hidden = false;
+  sfView('persp');
+  sfCard();
+  el.focus();
+}
+function sfClose(){
+  if(!SF.el || SF.el.hidden) return;
+  SF.el.hidden = true;
+  if(SI.big) SI.big.hidden = true;
+  SF.r = null;
+}
+function sfView(kind){
+  var az = SF.r.tr.az;
+  SF.tgt = sfAt(SF.len / .3048 / 2);
+  SF.D = Math.max(30, SF.len * 1.45);
+  if(kind === 'plan'){ SF.yaw = 180; SF.pitch = 89; }
+  else if(kind === 'section'){ SF.yaw = (az + 90) % 360; SF.pitch = 4; }
+  else { SF.yaw = (az + 125) % 360; SF.pitch = 24; }
+  sfDraw();
+}
+function sfDraw(){
+  if(SF.raf) return;
+  SF.raf = requestAnimationFrame(function(){ SF.raf = 0; sfRender(); });
+}
+function sfRender(){
+  var cv = SF.cv, dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if(!W || !H || !SF.r) return;
+  if(cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  var x = cv.getContext('2d'), C = sfCam(), h = SF.h, L0 = SF.len / .3048;
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.fillStyle = '#12161b'; x.fillRect(0, 0, W, H);
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  function seg(a, b, w, col){
+    var A = sfP(C, a), B = sfP(C, b);
+    if(!A || !B) return null;
+    x.strokeStyle = col; x.lineWidth = w; x.beginPath(); x.moveTo(A[0], A[1]); x.lineTo(B[0], B[1]); x.stroke();
+    return [A, B];
+  }
+  function txt(s, p, dx, dy, col, font, al){
+    if(!p) return;
+    x.font = font || '600 12px Barlow, "Segoe UI", Arial, sans-serif'; x.textAlign = al || 'left'; x.textBaseline = 'middle';
+    x.lineWidth = 3; x.strokeStyle = 'rgba(12,15,19,.9)'; x.strokeText(s, p[0] + dx, p[1] + dy);
+    x.fillStyle = col; x.fillText(s, p[0] + dx, p[1] + dy);
+  }
+  /* collar-level grid, 25 m squares out to about the hole's reach */
+  var ext = Math.ceil(Math.max(50, SF.len * .9) / 25) * 25, cxy = [SF.dir[0] * SF.len / 2, SF.dir[1] * SF.len / 2];
+  var gx0 = Math.round(cxy[0] / 25) * 25, gy0 = Math.round(cxy[1] / 25) * 25;
+  x.lineCap = 'butt';
+  for(var g = -ext; g <= ext + .1; g += 25){
+    var major = Math.abs((gx0 + g) % 100) < .1;
+    seg([gx0 + g, gy0 - ext, 0], [gx0 + g, gy0 + ext, 0], 1, major ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.05)');
+    major = Math.abs((gy0 + g) % 100) < .1;
+    seg([gx0 - ext, gy0 + g, 0], [gx0 + ext, gy0 + g, 0], 1, major ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.05)');
+  }
+  txt('collar level', sfP(C, [gx0 + ext, gy0 - ext, 0]), 4, 0, 'rgba(255,255,255,.35)', '500 11px Barlow, sans-serif');
+  x.lineCap = 'round';
+  /* end of hole dropped to the collar level, dashed, as a depth cue */
+  var toe = sfAt(L0), tp = sfP(C, toe), tg = sfP(C, [toe[0], toe[1], 0]);
+  if(tp && tg){ x.setLineDash([4, 4]); x.strokeStyle = 'rgba(255,255,255,.28)'; x.lineWidth = 1; x.beginPath(); x.moveTo(tp[0], tp[1]); x.lineTo(tg[0], tg[1]); x.stroke(); x.setLineDash([]); }
+  /* the trace, grey like the no-grade class */
+  seg([0, 0, 0], sfAt(L0), 3, DTR_GREY);
+  /* samples at or above cut-off */
+  SF.hs = [];
+  if(h && SF.samples) h.s.forEach(function(s){
+    if(!(s[2] >= SIDATA.cut)) return;
+    var ab = seg(sfAt(s[0]), sfAt(s[1]), 6, siCol(s[2]));
+    if(ab) SF.hs.push({ t:'s', s:s, a:ab[0], b:ab[1] });
+  });
+  /* intercepts, widest, lowest grade first so the best sits on top */
+  if(h) h.si.map(function(v, k){ return { v:v, k:k }; }).sort(function(a, b){ return a.v[3] - b.v[3]; }).forEach(function(o){
+    var a = sfAt(o.v[0]), b = sfAt(o.v[1]);
+    if(SF.sel === o.k || SF.hov === o.k) seg(a, b, 17, '#ffffff');
+    seg(a, b, 13, 'rgba(12,15,19,.85)');
+    var ab = seg(a, b, 10, siCol(o.v[3]));
+    if(ab) SF.hs.push({ t:'i', k:o.k, v:o.v, a:ab[0], b:ab[1] });
+  });
+  /* depth ticks along the hole */
+  var step = L0 > 1500 ? 200 : L0 > 700 ? 100 : 50;
+  var side = sfNorm(sfCross(SF.dir, C.f));
+  for(var d = step; d < L0 - step * .3; d += step){
+    var p = sfAt(d), q = sfV(p, side, SF.D * .012);
+    seg(p, q, 1.4, 'rgba(255,255,255,.55)');
+    txt(siN(d) + ' ft', sfP(C, sfV(p, side, SF.D * .02)), 0, 0, 'rgba(255,255,255,.6)', '500 11px Barlow, sans-serif');
+  }
+  /* intercept grade labels on the other side */
+  if(h && SF.labels) h.si.forEach(function(v, k){
+    var m = sfAt((v[0] + v[1]) / 2);
+    txt(siG(v[3]) + ' g/t', sfP(C, sfV(m, side, -SF.D * .025)), 0, 0, siCol(v[3]), '700 13px Barlow, sans-serif', 'right');
+  });
+  /* collar, end of hole */
+  var cp = sfP(C, [0, 0, 0]);
+  if(cp){
+    x.fillStyle = SF.r.col; x.strokeStyle = '#14181d'; x.lineWidth = 1.5;
+    x.beginPath(); x.arc(cp[0], cp[1], 6, 0, Math.PI * 2); x.fill(); x.stroke();
+    txt(SF.r.id, cp, 0, -16, '#ffffff', '700 14px Barlow, sans-serif', 'center');
+  }
+  txt('EOH ' + siN(h && h.eoh ? h.eoh : L0) + ' ft', sfP(C, sfAt(L0)), 8, 8, 'rgba(255,255,255,.75)', '600 12px Barlow, sans-serif');
+  /* north / east / up gizmo */
+  var G = [64, H - 64], ax = [[[1, 0, 0], 'E', '#e8606a'], [[0, 1, 0], 'N', '#7be07a'], [[0, 0, 1], 'Up', '#5ec8e0']];
+  x.fillStyle = 'rgba(24,29,35,.85)'; x.beginPath(); x.arc(G[0], G[1], 44, 0, Math.PI * 2); x.fill();
+  ax.forEach(function(a){
+    var sx = sfDot(a[0], C.r), sy = -sfDot(a[0], C.u);
+    x.strokeStyle = a[2]; x.lineWidth = 2.4; x.beginPath(); x.moveTo(G[0], G[1]); x.lineTo(G[0] + sx * 32, G[1] + sy * 32); x.stroke();
+    txt(a[1], [G[0] + sx * 32, G[1] + sy * 32], sx * 9, sy * 9, a[2], '700 11px Barlow, sans-serif', 'center');
+  });
+}
+function sfHit(px, py){
+  var best = null, bd = 9;
+  (SF.hs || []).forEach(function(q){
+    var ax = q.a[0], ay = q.a[1], dx = q.b[0] - ax, dy = q.b[1] - ay, l2 = dx * dx + dy * dy;
+    var t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+    var d = Math.hypot(px - (ax + dx * t), py - (ay + dy * t)) - (q.t === 'i' ? 3 : 0);
+    if(d < bd || (best && best.t === 's' && q.t === 'i' && d < bd + 3)){ bd = d; best = q; }
+  });
+  return best;
+}
+function sfCard(){
+  var c = SF.el.querySelector('.sf-card');
+  if(SF.sel == null || !SF.h || !SF.h.si[SF.sel]){ c.hidden = true; return; }
+  c.innerHTML = '<button type="button" class="sf-cx" aria-label="Close details">\u00d7</button>' + siPop(SF.r.id, SF.h.si[SF.sel]);
+  c.hidden = false;
+}
+function sfEl(){
+  if(SF.el) return SF.el;
+  var el = SF.el = L.DomUtil.create('div', 'sf');
+  el.hidden = true; el.tabIndex = -1;
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Drill trace focus');
+  el.innerHTML =
+    '<div class="sf-hd"><span class="k">Trace focus</span><span class="sf-t num"></span><span class="sf-s"></span>' +
+      '<span class="sf-b">' +
+        '<button type="button" data-sf="persp" title="Oblique view of the whole trace">Reset</button>' +
+        '<button type="button" data-sf="section" title="Look side-on, across the hole\u2019s azimuth">Section</button>' +
+        '<button type="button" data-sf="plan" title="Look straight down, north up">Plan</button>' +
+        '<button type="button" data-sf="samples" class="on" aria-pressed="true" title="Samples at or above cut-off">Samples</button>' +
+        '<button type="button" data-sf="labels" class="on" aria-pressed="true" title="Intercept grade labels">Labels</button>' +
+        '<button type="button" data-sf="big" title="Diagram and table">Blow-up view</button>' +
+        '<button type="button" data-sf="exit" class="sf-exit" title="Back to the map (Esc)">\u2715 Exit</button>' +
+      '</span></div>' +
+    '<div class="sf-body"><canvas class="sf-cv"></canvas><div class="sf-tip" hidden></div><div class="sf-card" hidden></div>' +
+      '<div class="si-leg sf-leg">' + SI_BINS.slice().reverse().map(function(b){ return '<span><i style="background:' + b[1] + '"></i>' + b[2] + '</span>'; }).join('') +
+      '<span class="u">g/t Au</span></div>' +
+      '<div class="sf-help">Drag: orbit \u00b7 Right-drag or Shift-drag: pan \u00b7 Scroll: zoom \u00b7 Esc: exit</div></div>';
+  map.getContainer().appendChild(el);
+  L.DomEvent.disableClickPropagation(el);
+  L.DomEvent.disableScrollPropagation(el);
+  var cv = SF.cv = el.querySelector('.sf-cv'), tip = el.querySelector('.sf-tip');
+  el.querySelector('.sf-hd').addEventListener('click', function(e){
+    var b = e.target.closest('[data-sf]'); if(!b || b.disabled) return;
+    var a = b.dataset.sf;
+    if(a === 'exit') sfClose();
+    else if(a === 'persp' || a === 'section' || a === 'plan') sfView(a);
+    else if(a === 'samples' || a === 'labels'){
+      SF[a] = !SF[a]; b.classList.toggle('on', SF[a]); b.setAttribute('aria-pressed', SF[a]); sfDraw();
+    }
+    else if(a === 'big') siBig(SF.r.id, SF.sel);
+  });
+  el.querySelector('.sf-card').addEventListener('click', function(e){
+    if(e.target.closest('.sf-cx')){ SF.sel = null; sfCard(); sfDraw(); }
+  });
+  cv.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  cv.addEventListener('pointerdown', function(e){
+    cv.setPointerCapture(e.pointerId);
+    SF.drag = { x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, pan:e.button === 2 || e.shiftKey, id:e.pointerId };
+    SF.pts = SF.pts || {}; SF.pts[e.pointerId] = [e.clientX, e.clientY];
+  });
+  cv.addEventListener('pointermove', function(e){
+    var R = cv.getBoundingClientRect(), px = e.clientX - R.left, py = e.clientY - R.top;
+    if(SF.pts && SF.pts[e.pointerId] && Object.keys(SF.pts).length === 2){
+      /* pinch */
+      var ids = Object.keys(SF.pts), o = SF.pts[ids[0]], p = SF.pts[ids[1]], d0 = Math.hypot(o[0] - p[0], o[1] - p[1]);
+      SF.pts[e.pointerId] = [e.clientX, e.clientY];
+      o = SF.pts[ids[0]]; p = SF.pts[ids[1]];
+      var d1 = Math.hypot(o[0] - p[0], o[1] - p[1]);
+      if(d0 > 0 && d1 > 0) sfZoom(d0 / d1, (o[0] + p[0]) / 2 - R.left, (o[1] + p[1]) / 2 - R.top);
+      return;
+    }
+    var dr = SF.drag;
+    if(dr && dr.id === e.pointerId){
+      var dx = e.clientX - dr.x, dy = e.clientY - dr.y; dr.x = e.clientX; dr.y = e.clientY;
+      if(dr.pan){
+        var C = sfCam(), k = SF.D / C.F;
+        SF.tgt = sfV(sfV(SF.tgt, C.r, -dx * k), C.u, dy * k);
+      } else {
+        SF.yaw = (SF.yaw - dx * .4 + 360) % 360;
+        SF.pitch = Math.max(-89, Math.min(89, SF.pitch + dy * .3));
+      }
+      tip.hidden = true; sfDraw();
+      return;
+    }
+    var q = sfHit(px, py), hk = q && q.t === 'i' ? q.k : null;
+    if(hk !== SF.hov){ SF.hov = hk; sfDraw(); }
+    cv.style.cursor = q ? 'pointer' : 'grab';
+    if(!q){ tip.hidden = true; return; }
+    tip.innerHTML = q.t === 'i' ? siTip(SF.r.id, q.v)
+      : '<b>' + esc(SF.r.id) + '</b> \u00b7 sample ' + siN(q.s[0]) + '\u2013' + siN(q.s[1]) + ' ft<br><span class="si-dot" style="background:' +
+        siCol(q.s[2]) + '"></span><b>' + siG(q.s[2]) + ' g/t Au</b>';
+    tip.style.left = (px + 14) + 'px'; tip.style.top = (py + 14) + 'px'; tip.hidden = false;
+  });
+  function end(e){
+    if(SF.pts) delete SF.pts[e.pointerId];
+    var dr = SF.drag;
+    if(dr && dr.id === e.pointerId){
+      SF.drag = null;
+      if(Math.hypot(e.clientX - dr.x0, e.clientY - dr.y0) < 4 && e.type === 'pointerup'){
+        var R = cv.getBoundingClientRect(), q = sfHit(e.clientX - R.left, e.clientY - R.top);
+        SF.sel = q && q.t === 'i' ? (SF.sel === q.k ? null : q.k) : null;
+        sfCard(); sfDraw();
+      }
+    }
+  }
+  cv.addEventListener('pointerup', end);
+  cv.addEventListener('pointercancel', end);
+  cv.addEventListener('pointerleave', function(){ tip.hidden = true; if(SF.hov != null){ SF.hov = null; sfDraw(); } });
+  cv.addEventListener('dblclick', function(e){
+    var R = cv.getBoundingClientRect(), q = sfHit(e.clientX - R.left, e.clientY - R.top);
+    if(q && q.t === 'i') siBig(SF.r.id, q.k);
+  });
+  cv.addEventListener('wheel', function(e){
+    e.preventDefault();
+    var R = cv.getBoundingClientRect();
+    sfZoom(Math.exp(e.deltaY * (e.deltaMode === 1 ? .05 : .0015)), e.clientX - R.left, e.clientY - R.top);
+  }, { passive:false });
+  window.addEventListener('resize', function(){ if(!el.hidden) sfDraw(); });
+  return el;
+}
+/* zoom by k (<1 closer) toward the screen point under the cursor */
+function sfZoom(k, px, py){
+  var C = sfCam(), nd = Math.max(2, Math.min(SF.len * 25 + 500, SF.D * k));
+  k = nd / SF.D;
+  var dir = sfNorm(sfV(sfV(C.f, C.r, (px - C.W / 2) / C.F), C.u, -(py - C.H / 2) / C.F));
+  var P = sfV(C.c, dir, SF.D / sfDot(dir, C.f));
+  SF.tgt = sfV(P, [SF.tgt[0] - P[0], SF.tgt[1] - P[1], SF.tgt[2] - P[2]], k);
+  SF.D = nd;
+  sfDraw();
+}
+/* Esc closes the blow-up first, then the focus window */
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Escape') return;
+  if(SI.big && !SI.big.hidden){ SI.big.hidden = true; e.stopPropagation(); return; }
+  if(SF.el && !SF.el.hidden){ sfClose(); e.stopPropagation(); }
 }, true);
 
 function siInit(){
@@ -6863,8 +7181,7 @@ function siInit(){
       var r = siRec(id); if(!r) return;
       if(go.dataset.siGo === 'solo'){ siSolo(SI.solo === id ? null : id); return; }
       if(go.dataset.siGo === 'map'){ drFocus(r); return; }
-      showTab('v3d');
-      HRMI3D.ready(function(){ setTimeout(function(){ dtrZoom(r); }, 300); });
+      sfOpen(id);
       return;
     }
     if(e.target.closest('.si-hd')){ SI.open[id] = !SI.open[id]; siList(); fitPanel(); }
