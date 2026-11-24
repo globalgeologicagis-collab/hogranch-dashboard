@@ -1283,6 +1283,49 @@ table.pop td.v{color:var(--paper);font-variant-numeric:tabular-nums}
 @media (max-width:767px){
   .maplibregl-ctrl-bottom-right{bottom:calc(58px + env(safe-area-inset-bottom, 0px))}
 }
+
+/* v3.0.2: full title on phones and tablets, on two lines */
+@media (max-width:991px){
+  .brand h1{white-space:normal;overflow:visible;line-height:1.05;display:flex;flex-wrap:wrap;column-gap:.28em;align-items:baseline}
+  .brand h1 em{display:inline}
+  .brand h1 .sys{display:block;flex-basis:100%;font-size:.6em;letter-spacing:.05em;margin-top:2px}
+  .brand h1{font-size:clamp(15px, 2.3vw, 19px);flex-wrap:nowrap;display:block}
+  .brand h1 em{white-space:nowrap}
+  .brand h1 .sys{font-size:11.5px;white-space:nowrap}
+}
+@media (max-width:767px){
+  .brand h1{font-size:18px;text-overflow:clip}
+  .brand h1 .sys{font-size:11.5px}
+}
+@media (max-width:379px){
+  .brand h1{font-size:16px}
+  .brand h1 .sys{font-size:10.5px;letter-spacing:.03em}
+}
+/* v3.0.2: phone tilt tool in the 3D view */
+.v3-tilt{display:none}
+@media (max-width:767px){
+  #map.v3d .v3-tilt{
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);z-index:5;
+    width:48px;padding:6px 0 8px;background:rgba(24,29,35,.9);border:var(--hair);border-left:3px solid var(--brass);
+    border-radius:3px;box-shadow:0 2px 12px rgba(0,0,0,.5);touch-action:none
+  }
+  .v3-tilt button{width:40px;height:34px;border-radius:2px;color:var(--paper);font-size:13px;line-height:1}
+  .v3-tilt button:active{background:var(--ink-soft)}
+  .tt-track{position:relative;width:40px;height:min(150px, 24vh);cursor:pointer;touch-action:none;outline:none}
+  .tt-track::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:4px;margin-left:-2px;border-radius:2px;background:#3f4750}
+  .tt-fill{position:absolute;left:50%;top:0;width:4px;margin-left:-2px;border-radius:2px;background:var(--brass-lit)}
+  .tt-knob{position:absolute;left:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;
+    background:var(--brass-lit);border:2px solid #191d23;box-shadow:0 1px 4px rgba(0,0,0,.6)}
+  .tt-sfc{position:absolute;left:2px;right:2px;height:0;border-top:1.5px dashed rgba(255,255,255,.55)}
+  .tt-sfc span{position:absolute;right:100%;top:-8px;margin-right:9px;padding:1px 5px;font-size:10.5px;white-space:nowrap;
+    color:var(--paper);background:rgba(24,29,35,.9);border-radius:2px}
+  .tt-val{font-size:11.5px;color:var(--paper);min-height:14px}
+  .v3-tilt.below .tt-fill,.v3-tilt.below .tt-knob{background:#5ec8e0}
+  .v3-tilt.below .tt-val{color:#5ec8e0}
+  .tt-rot{display:flex;flex-direction:column;gap:3px;margin-top:2px;padding-top:6px;border-top:var(--hair)}
+  .tt-rot button{font-size:18px}
+}
 </style>
 </head>
 <body>
@@ -1302,7 +1345,7 @@ table.pop td.v{color:var(--paper);font-variant-numeric:tabular-nums}
     <button id="tabDrill" role="tab" aria-controls="paneDrill" aria-selected="false" tabindex="-1">Drill Status</button>
   </nav>
   <div class="stamp">
-    <div class="v num">Version 3.0.1</div>
+    <div class="v num">Version 3.0.2</div>
     <div class="d num" id="today"></div>
   </div>
 </header>
@@ -4819,6 +4862,7 @@ function v3Sub(){
   if(V3S.sub){ try { var cgl = g.painter.context.gl; cgl.disable(cgl.CULL_FACE); g.painter.context.cullFace.dirty = true; } catch(err){} }
   g.triggerRepaint();
   g.setMaxPitch(V3S.sub ? 180 : 85);
+  if(V3.tiltUI) V3.tiltUI();
   v3GroundOp();
   v3Under();
   if(V3S.sub) v3Pivot();
@@ -6252,6 +6296,61 @@ function v3Seat(){
 }
 window.addEventListener('resize', function(){ if(V3.on) v3Seat(); });
 
+/* ---- phone 3D tilt tool (v3.0.2) -------------------------------------------
+   A small slider on the right of the 3D view on phones: drag the knob down
+   to lower the camera; past the "Surface" mark (90 degrees, with Below
+   surface on) it looks up from under the ground. Arrows step the tilt;
+   the round buttons turn the view. Follows the camera both ways.        */
+function v3TiltTool(g){
+  var el = L.DomUtil.create('div', 'v3-tilt', V3.box);
+  el.innerHTML =
+    '<button type="button" data-t="up" aria-label="Raise the camera">\u25b2</button>' +
+    '<div class="tt-track" role="slider" aria-label="Camera tilt" tabindex="0"><div class="tt-sfc"><span>Surface</span></div>' +
+      '<div class="tt-fill"></div><div class="tt-knob"></div></div>' +
+    '<button type="button" data-t="dn" aria-label="Lower the camera">\u25bc</button>' +
+    '<div class="tt-val num"></div>' +
+    '<div class="tt-rot"><button type="button" data-t="l" aria-label="Turn left">\u21ba</button>' +
+    '<button type="button" data-t="r" aria-label="Turn right">\u21bb</button></div>';
+  L.DomEvent.disableClickPropagation(el);
+  L.DomEvent.disableScrollPropagation(el);
+  var tr = el.querySelector('.tt-track'), knob = el.querySelector('.tt-knob'), fill = el.querySelector('.tt-fill'),
+      sfc = el.querySelector('.tt-sfc'), val = el.querySelector('.tt-val');
+  function mx(){ return g.getMaxPitch(); }
+  function ui(){
+    var p = g.getPitch(), m = mx(), f = Math.max(0, Math.min(1, p / m));
+    knob.style.top = (f * 100) + '%'; fill.style.height = (f * 100) + '%';
+    sfc.style.display = m > 90 ? '' : 'none'; sfc.style.top = (90 / m * 100) + '%';
+    val.textContent = Math.round(p) + '\u00b0';
+    el.classList.toggle('below', p > 90);
+    tr.setAttribute('aria-valuenow', Math.round(p)); tr.setAttribute('aria-valuemax', Math.round(m));
+  }
+  function setP(p, ease){
+    p = Math.max(0, Math.min(mx(), p));
+    if(ease) g.easeTo({ pitch:p, duration:220 }); else g.setPitch(p);
+  }
+  function fromY(y){ var r = tr.getBoundingClientRect(); setP((y - r.top) / r.height * mx(), false); }
+  var drag = null;
+  tr.addEventListener('pointerdown', function(e){ drag = e.pointerId; tr.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault(); });
+  tr.addEventListener('pointermove', function(e){ if(drag === e.pointerId) fromY(e.clientY); });
+  tr.addEventListener('pointerup', function(e){ if(drag === e.pointerId) drag = null; });
+  tr.addEventListener('pointercancel', function(){ drag = null; });
+  tr.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowDown'){ setP(g.getPitch() + 5, true); e.preventDefault(); }
+    if(e.key === 'ArrowUp'){ setP(g.getPitch() - 5, true); e.preventDefault(); }
+  });
+  el.addEventListener('click', function(e){
+    var b = e.target.closest('[data-t]'); if(!b) return;
+    var t = b.dataset.t;
+    if(t === 'up') setP(g.getPitch() - 10, true);
+    else if(t === 'dn') setP(g.getPitch() + 10, true);
+    else g.easeTo({ bearing:g.getBearing() + (t === 'l' ? -22.5 : 22.5), duration:260 });
+  });
+  g.on('pitch', ui);
+  g.on('rotate', ui);
+  ui();
+  V3.tiltUI = ui;
+}
+
 function v3Init(){
   var c = map.getCenter(), g;
   try {
@@ -6281,6 +6380,7 @@ function v3Init(){
   g.addControl(new maplibregl.ScaleControl({ maxWidth:110, unit:'metric' }), 'bottom-right');
   g.addControl(v3Panel(), 'top-left');
   v3Seat();
+  v3TiltTool(g);
   g.on('load', function(){
     V3.ready = true;
     try { g.setSky({ 'sky-color':'#2b3440', 'horizon-color':'#4a535e', 'fog-color':'#1f252c',
