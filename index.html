@@ -674,37 +674,6 @@ table.pop td.v{color:var(--paper);font-variant-numeric:tabular-nums}
 }
 .v3-btns button:hover{border-color:var(--brass);color:var(--paper)}
 .v3-btns button:focus-visible{outline:2px solid var(--brass-lit);outline-offset:1px}
-.v3-btns button.mod{color:var(--brass-lit);border-color:var(--brass)}
-.v3-btns button.mod.on{background:var(--brass);color:#191d23}
-.v3-mod{
-  position:absolute;z-index:7;width:420px;max-width:calc(100% - 20px);
-  background:rgba(24,29,35,.96);border:var(--hair);border-left:3px solid var(--brass);border-radius:2px;
-  padding:8px 10px 9px;box-shadow:0 4px 20px rgba(0,0,0,.6);font-size:11.5px;color:var(--paper-dim)
-}
-.v3-mod[hidden]{display:none}
-.v3-mhd{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;
-  text-transform:uppercase;color:var(--brass-lit);margin-bottom:6px}
-.v3-mline{display:flex;gap:6px;margin-bottom:6px;align-items:center}
-.v3-mline input[type=text],.v3-mline select{
-  flex:1 1 auto;min-width:0;background:var(--ink-deep);border:1px solid var(--slate);border-radius:2px;
-  color:var(--paper);font:inherit;font-size:11.5px;padding:4px 6px;outline:0
-}
-.v3-mline input[type=text]:focus,.v3-mline select:focus{border-color:var(--brass)}
-.v3-mline button,.v3-mfile,.v3-mrow button{
-  flex:0 0 auto;padding:4px 9px;border:1px solid var(--slate);border-radius:2px;white-space:nowrap;cursor:pointer;
-  font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--paper-dim)
-}
-.v3-mline button:hover,.v3-mfile:hover,.v3-mrow button:hover{border-color:var(--brass);color:var(--paper)}
-.v3-mfile input{display:none}
-.v3-mmsg{font-size:11px;color:var(--slate-soft);min-height:14px;margin-bottom:4px;line-height:1.4}
-.v3-mmsg.err{color:var(--review)}
-.v3-mrow{display:flex;align-items:center;gap:7px;padding:4px 0;border-top:1px solid #2b333c}
-.v3-mrow input[type=checkbox]{width:13px;height:13px;margin:0;accent-color:var(--brass)}
-.v3-mrow input[type=color]{width:20px;height:16px;padding:0;border:1px solid var(--slate);background:none;cursor:pointer}
-.v3-mrow .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--paper)}
-.v3-mrow input[type=range]{width:60px;accent-color:var(--brass)}
-.v3-mrow button{padding:2px 6px}
-.v3-mempty{font-size:11px;color:var(--slate-mid);padding:4px 0;border-top:1px solid #2b333c}
 .v3-msg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:340px;padding:14px 16px;
   background:var(--ink);border:var(--hair);border-left:3px solid var(--review);color:var(--paper-dim);font-size:13.5px;line-height:1.5}
 .v3-hov{position:absolute;z-index:5;pointer-events:none;display:none;transform:translate(-50%,calc(-100% - 12px));
@@ -1363,7 +1332,7 @@ table.pop td.v{color:var(--paper);font-variant-numeric:tabular-nums}
     <button id="tabDrill" role="tab" aria-controls="paneDrill" aria-selected="false" tabindex="-1">Drill Status</button>
   </nav>
   <div class="stamp">
-    <div class="v num">Version 3.0.3</div>
+    <div class="v num">Version 3.0.4</div>
     <div class="d num" id="today"></div>
   </div>
 </header>
@@ -4645,12 +4614,11 @@ mainTabs.forEach(function(t, i){
    highlight) is copied across in Leaflet's own draw order. Clicks run through
    the same feature popups and overlap picker as the 2D map. MapLibre is only
    fetched the first time the tab is opened. Terrain is the free AWS Terrain
-   Tiles DEM. window.HRMI3D exposes the GL map for the drillhole and DXF layers
-   that will be added here later.
+   Tiles DEM. window.HRMI3D exposes the GL map for the drillhole layers.
    Mouse: left drag tilts and rotates, right drag (or Shift + left) pans,
    wheel zooms. "See below surface" frees the camera to go under the ground:
    tilt runs to 180 degrees, the ground turns translucent and the pivot can
-   be lowered to a depth, ready for subsurface models.                      */
+   be lowered to a depth to inspect drill traces.                          */
 var V3 = { on:false, gl:null, ready:false, loading:false, waiters:[], readyQ:[],
            sig:{ a:'', b:'' }, refs:{ a:[], b:[] }, timer:null, fromGL:false,
            base:null, popup:null, quiet:false, box:null, div:null, hov:null, ui:{} };
@@ -5127,7 +5095,7 @@ function v3Panel(){
         sl('v3Gop', 'Ground', .05, 1, .05, V3S.gop, 'Ground opacity') +
         sl('v3Dep', 'Pivot', 0, 1500, 25, V3S.depth, 'Pivot depth below surface') + sep +
         sl('v3Lift', 'Survey lift', 0, 600, 10, V3S.lift, 'Height of biological survey lines') +
-        '<div class="v3-btns"><button type="button" id="v3ModBtn" class="mod">Models</button><button type="button" id="v3Plan">Plan</button>' +
+        '<div class="v3-btns"><button type="button" id="v3Plan">Plan</button>' +
         '<button type="button" id="v3Obl">Oblique</button>' +
         '<button type="button" id="v3North">North</button></div>';
       var q = function(id){ return d.querySelector('#' + id); };
@@ -5150,7 +5118,6 @@ function v3Panel(){
       };
       q('v3Ter').onchange  = function(){ V3S.terrain = this.checked; v3Terrain(); };
       q('v3Hill').onchange = function(){ V3S.hill = this.checked; v3Terrain(); };
-      q('v3ModBtn').onclick = function(){ modToggle(); };
       q('v3Plan').onclick  = function(){ V3.gl.easeTo({ pitch:0, bearing:0, duration:700 }); };
       q('v3Obl').onclick   = function(){ V3.gl.easeTo({ pitch:60, duration:700 }); };
       q('v3North').onclick = function(){ V3.gl.easeTo({ bearing:0, duration:500 }); };
@@ -5487,19 +5454,9 @@ function bio3Stamps(){
   return s;
 }
 
-/* ---- 3D models from DXF (v2.3) -----------------------------------------------
-   DXF files are read in the browser, from a local file or a web link (a GitHub
-   "blob" link is turned into its raw download), so the file goes straight from
-   its source to this page. Faces come from 3DFACE, polyface POLYLINE and MESH
-   entities; LINE, LWPOLYLINE and 3D POLYLINE draw as lines. ACIS solids
-   (3DSOLID, BODY, REGION) and block INSERTs cannot be read and are counted.
-   Coordinates are projected easting/northing with elevation as Z: the
-   coordinate system is picked automatically as the listed system that puts the
-   model nearest the claims, or chosen by hand. Elevations are drawn on the same
-   vertical scale as the terrain. With "Below surface" on the models show
-   through the ground; otherwise the ground hides what lies beneath it.
-   Models loaded from a link are remembered in this browser and reload on the
-   next visit; a local file has to be opened again.                          */
+/* ---- projected coordinate systems ------------------------------------------
+   Used to place drill data given in easting/northing. 3D models from DXF
+   were removed in v3.0.4; these helpers stay for the drillhole loader.     */
 var DXF_CRS = [
   { id:'utm11',   nm:'UTM 11N, NAD83 / WGS84 (m)',      k0:.9996, lon0:-117,         lat0:0,     fe:500000, fn:0,       u:1 },
   { id:'utm11ft', nm:'UTM 11N, NAD83 (US ft)',          k0:.9996, lon0:-117,         lat0:0,     fe:500000, fn:0,       u:1200 / 3937 },
@@ -5532,438 +5489,8 @@ function tmInv(E, N, p){
   return [lon / rad, lat / rad];
 }
 
-/* ---- DXF reading ---- */
-function dxfParse(text){
-  if(text.slice(0, 22) === 'AutoCAD Binary DXF\r\n\u001a\u0000') throw new Error('This is a binary DXF. Save it as an ASCII DXF and load it again.');
-  var L = text.split(/\r\n|\r|\n/), n = L.length - 1;
-  var tri = [], lin = [], skip = {}, units = 0, x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
-  function ext(x, y, z){
-    if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y; if(z < z0) z0 = z; if(z > z1) z1 = z;
-  }
-  function T(a, b, c){ tri.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]); ext(a[0], a[1], a[2]); ext(b[0], b[1], b[2]); ext(c[0], c[1], c[2]); }
-  function S(a, b){ lin.push(a[0], a[1], a[2], b[0], b[1], b[2]); ext(a[0], a[1], a[2]); ext(b[0], b[1], b[2]); }
-  function same(a, b){ return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]; }
-  var i = 0, sect = '', ent = null, poly = null;
-  function flush(){
-    if(!ent) return;
-    var t = ent.t, g = ent.g;
-    function P(k){ return [ +(g[10 + k] || 0), +(g[20 + k] || 0), +(g[30 + k] || 0) ]; }
-    if(t === '3DFACE'){
-      var a = P(0), b = P(1), c = P(2), d = P(3);
-      T(a, b, c);
-      if(!same(c, d) && !same(a, d)) T(a, c, d);
-    } else if(t === 'LINE'){
-      S(P(0), P(1));
-    } else if(t === 'LWPOLYLINE'){
-      var z = +(g[38] || 0), q = ent.xy, closed = (+(g[70] || 0)) & 1;
-      for(var k = 1; k < q.length; k++) S([q[k-1][0], q[k-1][1], z], [q[k][0], q[k][1], z]);
-      if(closed && q.length > 2) S([q[q.length-1][0], q[q.length-1][1], z], [q[0][0], q[0][1], z]);
-    } else if(t === 'MESH'){
-      var V = ent.v, F = ent.f;
-      for(var j = 0; j < F.length;){
-        var m = F[j++], ids = F.slice(j, j + m); j += m;
-        for(var h = 1; h < m - 1; h++) if(V[ids[0]] && V[ids[h]] && V[ids[h+1]]) T(V[ids[0]], V[ids[h]], V[ids[h+1]]);
-      }
-    } else if(t === 'POLYLINE'){
-      poly = { flags:+(g[70] || 0), v:[], f:[] };
-    } else if(t === 'VERTEX' && poly){
-      var fl = +(g[70] || 0);
-      if((poly.flags & 64) && (fl & 128) && !(fl & 64)){
-        poly.f.push([g[71], g[72], g[73], g[74]].map(function(x){ return Math.abs(+(x || 0)); }));
-      } else {
-        poly.v.push(P(0));
-      }
-    } else if(t === 'SEQEND' && poly){
-      if(poly.flags & 64){
-        poly.f.forEach(function(F4){
-          var vs = F4.filter(function(x){ return x > 0; }).map(function(x){ return poly.v[x - 1]; }).filter(Boolean);
-          for(var h = 1; h < vs.length - 1; h++) T(vs[0], vs[h], vs[h+1]);
-        });
-      } else if(poly.flags & 16){
-        skip['POLYLINE (polygon mesh)'] = (skip['POLYLINE (polygon mesh)'] || 0) + 1;
-      } else {
-        for(var k2 = 1; k2 < poly.v.length; k2++) S(poly.v[k2-1], poly.v[k2]);
-        if((poly.flags & 1) && poly.v.length > 2) S(poly.v[poly.v.length-1], poly.v[0]);
-      }
-      poly = null;
-    } else if(t !== 'SEQEND' && t !== 'VERTEX' && t !== 'ENDSEC' && t !== 'EOF'){
-      skip[t] = (skip[t] || 0) + 1;
-    }
-    ent = null;
-  }
-  while(i < n){
-    var code = +L[i].trim(), val = L[i + 1].trim();
-    i += 2;
-    if(code === 0){
-      flush();
-      if(val === 'SECTION'){ sect = ''; continue; }
-      if(val === 'ENDSEC'){ sect = ''; continue; }
-      if(sect === 'ENTITIES') ent = { t:val, g:{}, xy:[], v:[], f:[], nv:-1, nf:-1 };
-      continue;
-    }
-    if(code === 2 && !sect && !ent){ sect = val; continue; }
-    if(sect === 'HEADER' && code === 9 && val === '$INSUNITS'){
-      if(+L[i].trim() === 70) units = +L[i + 1].trim();
-      continue;
-    }
-    if(!ent) continue;
-    if(ent.t === 'LWPOLYLINE' && code === 10){ ent.xy.push([+val, 0]); continue; }
-    if(ent.t === 'LWPOLYLINE' && code === 20){ if(ent.xy.length) ent.xy[ent.xy.length-1][1] = +val; continue; }
-    if(ent.t === 'MESH'){
-      if(code === 92){ ent.nv = +val; continue; }
-      if(code === 93){ ent.nf = +val; continue; }
-      if(ent.nv > 0 && ent.v.length <= ent.nv && (code === 10 || code === 20 || code === 30)){
-        if(code === 10) ent.v.push([+val, 0, 0]);
-        else if(ent.v.length) ent.v[ent.v.length-1][code === 20 ? 1 : 2] = +val;
-        continue;
-      }
-      if(ent.nf > 0 && code === 90 && ent.f.length < ent.nf){ ent.f.push(+val); continue; }
-    }
-    ent.g[code] = val;
-  }
-  flush();
-  return { tri:new Float64Array(tri), lin:new Float64Array(lin), skip:skip, units:units,
-           ext:[x0, y0, z0, x1, y1, z1] };
-}
-
-/* ---- placing a model ---- */
-function dxfPickCRS(D){
-  var cx = (D.ext[0] + D.ext[3]) / 2, cy = (D.ext[1] + D.ext[4]) / 2;
-  var home = HOME ? HOME.getCenter() : map.getCenter(), best = null;
-  DXF_CRS.forEach(function(c){
-    var ll = tmInv(cx, cy, c);
-    if(!isFinite(ll[0]) || !isFinite(ll[1])) return;
-    var d = map.distance([ll[1], ll[0]], home);
-    if(D.units === 2 && c.u === 1) d *= 1.5;        /* the file says feet */
-    if(D.units === 6 && c.u !== 1) d *= 1.5;        /* the file says metres */
-    if(!best || d < best.d) best = { c:c, d:d };
-  });
-  return (best && best.d < 80000) ? best.c : null;
-}
-/* the projected grid is mapped to Web Mercator by an affine fit at the model
-   centre; across a few kilometres the error is a few centimetres          */
-function dxfAffine(cx, cy, c){
-  var h = 500 / c.u;
-  var m0 = maplibregl.MercatorCoordinate.fromLngLat(tmInv(cx, cy, c)),
-      mE = maplibregl.MercatorCoordinate.fromLngLat(tmInv(cx + h, cy, c)),
-      mN = maplibregl.MercatorCoordinate.fromLngLat(tmInv(cx, cy + h, c));
-  return { ax:(mE.x - m0.x) / h, ay:(mE.y - m0.y) / h, bx:(mN.x - m0.x) / h, by:(mN.y - m0.y) / h,
-           ox:m0.x, oy:m0.y, cx:cx, cy:cy, mpm:m0.meterInMercatorCoordinateUnits() };
-}
-
-var MODELS = [], MODEL_SEQ = 0, MODEL_COLS = ['#e8873a', '#5ec8e0', '#c98ae8', '#e8d25a', '#7be07a', '#ef6a8a'];
-var MOD_KEY = 'hrmi3d.models.v1';
-function modSave(){
-  try {
-    localStorage.setItem(MOD_KEY, JSON.stringify(MODELS.filter(function(m){ return m.url; }).map(function(m){
-      return { url:m.url, crs:m.crsSet, col:m.col, op:m.op, on:m.on, name:m.name };
-    })));
-  } catch(err){}
-}
-
-function modBuild(D, crs){
-  var u = crs.u, cx = (D.ext[0] + D.ext[3]) / 2, cy = (D.ext[1] + D.ext[4]) / 2, A = dxfAffine(cx, cy, crs);
-  function put(src, dst, k){
-    var dx = src[k] - cx, dy = src[k+1] - cy;
-    dst[k]   = A.ax * dx + A.bx * dy;
-    dst[k+1] = A.ay * dx + A.by * dy;
-    dst[k+2] = src[k+2] * u;
-  }
-  var nt = D.tri.length, pos = new Float32Array(nt), nrm = new Float32Array(nt);
-  for(var k = 0; k < nt; k += 9){
-    put(D.tri, pos, k); put(D.tri, pos, k + 3); put(D.tri, pos, k + 6);
-    /* face normal in east, north, up metres */
-    var ax = (D.tri[k+3] - D.tri[k]) * u, ay = (D.tri[k+4] - D.tri[k+1]) * u, az = (D.tri[k+5] - D.tri[k+2]) * u;
-    var bx = (D.tri[k+6] - D.tri[k]) * u, by = (D.tri[k+7] - D.tri[k+1]) * u, bz = (D.tri[k+8] - D.tri[k+2]) * u;
-    var nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx, l = Math.hypot(nx, ny, nz) || 1;
-    for(var j = 0; j < 3; j++){ nrm[k + j*3] = nx / l; nrm[k + j*3 + 1] = ny / l; nrm[k + j*3 + 2] = nz / l; }
-  }
-  var nl = D.lin.length, lpos = new Float32Array(nl), lnrm = new Float32Array(nl);
-  for(k = 0; k < nl; k += 3){ put(D.lin, lpos, k); lnrm[k+2] = 1; }
-  var sw = tmInv(D.ext[0], D.ext[1], crs), ne = tmInv(D.ext[3], D.ext[4], crs),
-      nw = tmInv(D.ext[0], D.ext[4], crs), se = tmInv(D.ext[3], D.ext[1], crs);
-  return { pos:pos, nrm:nrm, nTri:nt / 3, lpos:lpos, lnrm:lnrm, nLin:nl / 3, A:A,
-           zmin:D.ext[2] * u, zmax:D.ext[5] * u,
-           bounds:[[Math.min(sw[0], nw[0]), Math.min(sw[1], se[1])], [Math.max(ne[0], se[0]), Math.max(ne[1], nw[1])]],
-           centre:tmInv(cx, cy, crs) };
-}
-
-/* ground height at one point, from the same terrain tiles, for when the
-   terrain is switched off and models are hung from a flat ground plane     */
-function modGround(ll, done){
-  var z = 12, n = Math.pow(2, z), r = ll[1] * Math.PI / 180;
-  var fx = (ll[0] + 180) / 360 * n, fy = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n;
-  var X = Math.floor(fx), Y = Math.floor(fy);
-  fetch(V3_DEM.replace('{z}', z).replace('{x}', X).replace('{y}', Y), { mode:'cors' })
-    .then(function(res){ if(!res.ok) throw new Error(res.status); return res.blob(); })
-    .then(function(b){ return createImageBitmap(b); })
-    .then(function(img){
-      var cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
-      var cx = cv.getContext('2d'); cx.drawImage(img, 0, 0);
-      var px = cx.getImageData(Math.min(img.width - 1, Math.floor((fx - X) * img.width)), Math.min(img.height - 1, Math.floor((fy - Y) * img.height)), 1, 1).data;
-      done(px[0] * 256 + px[1] + px[2] / 256 - 32768);
-    })
-    .catch(function(){ done(null); });
-}
-
-/* ---- the GL layer: lit faces, plain lines ---- */
-var MOD_VS = [
-  'attribute vec3 a_pos; attribute vec3 a_nrm;',
-  'uniform mat4 u_matrix; uniform float u_mpm; uniform float u_zs; uniform float u_zoff;',
-  'varying vec3 v_nrm;',
-  'void main(){',
-  '  v_nrm = vec3(a_nrm.xy, a_nrm.z / max(u_zs, 0.001));',
-  '  gl_Position = u_matrix * vec4(a_pos.x, a_pos.y, (a_pos.z * u_zs - u_zoff) * u_mpm, 1.0);',
-  '}'
-].join('\n');
-var MOD_FS = [
-  'precision mediump float;',
-  'uniform vec3 u_col; uniform float u_op; uniform float u_lit;',
-  'varying vec3 v_nrm;',
-  'void main(){',
-  '  vec3 n = normalize(v_nrm);',
-  '  float d = abs(dot(n, normalize(vec3(-0.45, 0.55, 0.70))));',
-  '  float k = mix(1.0, 0.38 + 0.72 * d, u_lit);',
-  '  gl_FragColor = vec4(u_col * k * u_op, u_op);',
-  '}'
-].join('\n');
-var MOD = { prog:null, u:null, gl:null };
-function modUpload(m){
-  var gl = MOD.gl;
-  if(!gl || m.vao) return;
-  function vao(pos, nrm){
-    var v = gl.createVertexArray(); gl.bindVertexArray(v);
-    [['a_pos', pos], ['a_nrm', nrm]].forEach(function(a){
-      var b = gl.createBuffer(), loc = gl.getAttribLocation(MOD.prog, a[0]);
-      gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, a[1], gl.STATIC_DRAW);
-      if(loc >= 0){ gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0); }
-      (m.bufs = m.bufs || []).push(b);
-    });
-    gl.bindVertexArray(null);
-    return v;
-  }
-  m.vao = m.G.nTri ? vao(m.G.pos, m.G.nrm) : null;
-  m.lvao = m.G.nLin ? vao(m.G.lpos, m.G.lnrm) : null;
-}
-function modFree(m){
-  var gl = MOD.gl;
-  if(!gl) return;
-  if(m.vao) gl.deleteVertexArray(m.vao);
-  if(m.lvao) gl.deleteVertexArray(m.lvao);
-  (m.bufs || []).forEach(function(b){ gl.deleteBuffer(b); });
-  m.vao = m.lvao = null; m.bufs = [];
-}
-var MOD_LAYER = {
-  id:'v3models', type:'custom', renderingMode:'3d',
-  onAdd: function(mp, gl){
-    MOD.gl = gl;
-    function sh(type, src){
-      var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
-      if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
-      return s;
-    }
-    var p = gl.createProgram();
-    gl.attachShader(p, sh(gl.VERTEX_SHADER, MOD_VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, MOD_FS));
-    gl.linkProgram(p);
-    MOD.prog = p; MOD.u = {};
-    ['u_matrix','u_mpm','u_zs','u_zoff','u_col','u_op','u_lit'].forEach(function(nm){ MOD.u[nm] = gl.getUniformLocation(p, nm); });
-    MODELS.forEach(modUpload);
-  },
-  render: function(gl, args){
-    var list = MODELS.filter(function(m){ return m.on && (m.vao || m.lvao); });
-    if(!list.length) return;
-    var U = MOD.u, M = args.defaultProjectionData.mainMatrix, ter = V3S.terrain;
-    gl.useProgram(MOD.prog);
-    /* below the surface: the models are drawn over the ground, still sorting
-       among themselves                                                     */
-    if(V3S.sub) gl.clear(gl.DEPTH_BUFFER_BIT);
-    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
-    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.disable(gl.CULL_FACE);
-    list.forEach(function(m){
-      var A = m.G.A, o = new Float32Array(16);
-      for(var i = 0; i < 12; i++) o[i] = M[i];
-      for(var r = 0; r < 4; r++) o[12 + r] = M[r] * A.ox + M[4 + r] * A.oy + M[12 + r];
-      gl.uniformMatrix4fv(U.u_matrix, false, o);
-      gl.uniform1f(U.u_mpm, A.mpm);
-      gl.uniform1f(U.u_zs, ter ? V3S.exag : 1);
-      gl.uniform1f(U.u_zoff, ter ? 0 : (m.ground || 0));
-      var c = bio3Hex(m.col);
-      gl.uniform3f(U.u_col, c[0], c[1], c[2]);
-      gl.uniform1f(U.u_op, m.op);
-      gl.depthMask(m.op > .98);
-      if(m.vao){ gl.uniform1f(U.u_lit, 1); gl.bindVertexArray(m.vao); gl.drawArrays(gl.TRIANGLES, 0, m.G.nTri); }
-      if(m.lvao){ gl.uniform1f(U.u_lit, 0); gl.bindVertexArray(m.lvao); gl.drawArrays(gl.LINES, 0, m.G.nLin); }
-    });
-    gl.bindVertexArray(null);
-    gl.depthMask(true);
-  }
-};
-
-/* ---- loading ---- */
-function modURL(u){
-  u = String(u || '').trim();
-  var g = u.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/(.+)$/i);
-  if(g) return 'https://raw.githubusercontent.com/' + g[1] + '/' + g[2] + '/' + g[3].replace(/\?.*$/, '');
-  return u;
-}
-function modName(s){
-  s = decodeURIComponent(String(s).split('/').pop().split('?')[0]);
-  return s.replace(/\.dxf$/i, '');
-}
-function modStatus(msg, err){
-  var el = document.getElementById('v3ModMsg');
-  if(el){ el.textContent = msg; el.classList.toggle('err', !!err); }
-}
-function modAdd(text, src, opt, done){
-  opt = opt || {};
-  var D;
-  try { D = dxfParse(text); } catch(err){ modStatus(err.message, true); if(done) done(null); return; }
-  if(!D.tri.length && !D.lin.length){
-    var sk = Object.keys(D.skip).map(function(k){ return D.skip[k] + ' ' + k; }).join(', ');
-    modStatus('No faces or lines found that can be drawn' + (sk ? ' (found: ' + sk + ').' : '.'), true);
-    if(done) done(null); return;
-  }
-  var crs = (opt.crs && opt.crs !== 'auto') ? crsById(opt.crs) : dxfPickCRS(D);
-  if(!crs){
-    modStatus('Could not place the model near the claims. Choose its coordinate system and load it again.', true);
-    if(done) done(null); return;
-  }
-  var m = { id:++MODEL_SEQ, name:opt.name || modName(src.name || src), url:src.url || null,
-            crsSet:opt.crs || 'auto', crs:crs, col:opt.col || MODEL_COLS[(MODEL_SEQ - 1) % MODEL_COLS.length],
-            op:opt.op == null ? .85 : opt.op, on:opt.on !== false, skip:D.skip, ground:0 };
-  m.G = modBuild(D, crs);
-  MODELS.push(m);
-  modUpload(m);
-  modGround(m.G.centre, function(z){ if(z != null){ m.ground = z; V3.gl.triggerRepaint(); } });
-  modSave();
-  modList();
-  var msg = fmt(m.G.nTri / 3) + ' faces' + (m.G.nLin ? ', ' + fmt(m.G.nLin / 2) + ' line segments' : '') + ' \u00b7 ' + crs.nm;
-  var sk2 = Object.keys(D.skip).map(function(k){ return D.skip[k] + ' ' + k; }).join(', ');
-  modStatus(msg + (sk2 ? ' \u00b7 not drawn: ' + sk2 : ''));
-  V3.gl.triggerRepaint();
-  if(done) done(m);
-}
-function modLoadURL(u, opt, quiet){
-  var url = modURL(u);
-  if(!/^https?:\/\//i.test(url)){ modStatus('Enter a web link starting with http:// or https://', true); return; }
-  if(MODELS.some(function(m){ return m.url === url; })){ modStatus('That model is already loaded.'); return; }
-  modStatus('Downloading ' + modName(url) + '\u2026');
-  fetch(url).then(function(r){
-    if(!r.ok) throw new Error(r.status === 404 ? 'not found (a private repository needs the file opened from disk instead)' : 'HTTP ' + r.status);
-    return r.text();
-  }).then(function(t){
-    modStatus('Reading ' + modName(url) + '\u2026');
-    setTimeout(function(){
-      modAdd(t, { url:url, name:modName(url) }, opt, function(m){ if(m && !quiet) modFly(m); });
-    }, 20);
-  }).catch(function(err){
-    modStatus('Could not download the file: ' + (err && err.message || err), true);
-  });
-}
-function modLoadFile(file){
-  if(!file) return;
-  modStatus('Reading ' + file.name + '\u2026');
-  var rd = new FileReader();
-  rd.onload = function(){
-    setTimeout(function(){
-      modAdd(rd.result, { name:file.name }, { crs:document.getElementById('v3ModCrs').value }, function(m){ if(m) modFly(m); });
-    }, 20);
-  };
-  rd.onerror = function(){ modStatus('The file could not be read.', true); };
-  rd.readAsText(file);
-}
-/* fly to a model, turn on the view below ground and pivot at its middle */
-function modFly(m){
-  var g = V3.gl;
-  if(!V3S.sub){ V3S.sub = true; var cb = document.getElementById('v3Sub'); if(cb) cb.checked = true; v3Sub(); }
-  g.fitBounds(m.G.bounds, { padding:90, pitch:Math.max(65, Math.min(80, g.getPitch())), bearing:g.getBearing(), duration:1200, maxZoom:16 });
-  g.once('moveend', function(){
-    var ge = V3S.terrain ? g.queryTerrainElevation(g.getCenter()) : null;
-    if(ge != null){
-      var mid = (m.G.zmin + m.G.zmax) / 2 * (V3S.terrain ? V3S.exag : 1);
-      var dep = Math.max(0, Math.min(1500, Math.round((ge - mid) / (V3S.terrain ? V3S.exag : 1) / 25) * 25));
-      V3S.depth = dep;
-      var U = V3.ui;
-      if(U.dep){ U.dep.value = dep; U.depV.textContent = dep + ' m'; }
-    }
-    v3Pivot();
-  });
-}
-function modRemove(m){
-  modFree(m);
-  MODELS = MODELS.filter(function(x){ return x !== m; });
-  modSave(); modList();
-  if(V3.gl) V3.gl.triggerRepaint();
-}
-
-/* ---- the models panel, opened from the bar ---- */
-function modList(){
-  var box = document.getElementById('v3ModList'), btn = document.getElementById('v3ModBtn');
-  if(btn) btn.textContent = 'Models' + (MODELS.length ? ' (' + MODELS.length + ')' : '');
-  if(!box) return;
-  box.innerHTML = MODELS.length ? '' : '<div class="v3-mempty">No models loaded</div>';
-  MODELS.forEach(function(m){
-    var r = document.createElement('div');
-    r.className = 'v3-mrow';
-    r.innerHTML =
-      '<input type="checkbox"' + (m.on ? ' checked' : '') + ' aria-label="Show ' + esc(m.name) + '">' +
-      '<input type="color" value="' + m.col + '" aria-label="Colour">' +
-      '<span class="nm" title="' + esc(m.name + ' \u00b7 ' + m.crs.nm) + '">' + esc(m.name) + '</span>' +
-      '<input type="range" min="0.1" max="1" step="0.05" value="' + m.op + '" aria-label="Opacity">' +
-      '<button type="button" class="zm">Zoom</button><button type="button" class="rm" aria-label="Remove">\u00d7</button>';
-    var q = r.querySelectorAll('input');
-    q[0].onchange = function(){ m.on = this.checked; modSave(); V3.gl.triggerRepaint(); };
-    q[1].oninput = function(){ m.col = this.value; modSave(); V3.gl.triggerRepaint(); };
-    q[2].oninput = function(){ m.op = +this.value; modSave(); V3.gl.triggerRepaint(); };
-    r.querySelector('.zm').onclick = function(){ modFly(m); };
-    r.querySelector('.rm').onclick = function(){ modRemove(m); };
-    box.appendChild(r);
-  });
-}
-function modPanel(){
-  var p = document.createElement('div');
-  p.className = 'v3-mod';
-  p.id = 'v3Mod';
-  p.hidden = true;
-  p.innerHTML =
-    '<div class="v3-mhd">3D models (DXF)</div>' +
-    '<div class="v3-mline"><input type="text" id="v3ModUrl" placeholder="Paste a link to a DXF file" spellcheck="false" aria-label="Link to a DXF file">' +
-    '<button type="button" id="v3ModGo">Load</button></div>' +
-    '<div class="v3-mline"><label class="v3-mfile"><input type="file" id="v3ModFile" accept=".dxf">Open a DXF file\u2026</label>' +
-    '<select id="v3ModCrs" aria-label="Coordinate system"><option value="auto">Coordinates: detect</option>' +
-    DXF_CRS.map(function(c){ return '<option value="' + c.id + '">' + esc(c.nm) + '</option>'; }).join('') + '</select></div>' +
-    '<div class="v3-mmsg" id="v3ModMsg"></div>' +
-    '<div id="v3ModList"></div>';
-  ['mousedown','click','dblclick','wheel','keydown','contextmenu'].forEach(function(ev){
-    p.addEventListener(ev, function(e){ e.stopPropagation(); });
-  });
-  V3.box.appendChild(p);
-  p.querySelector('#v3ModGo').onclick = function(){
-    modLoadURL(document.getElementById('v3ModUrl').value, { crs:document.getElementById('v3ModCrs').value });
-  };
-  p.querySelector('#v3ModUrl').onkeydown = function(e){ if(e.key === 'Enter') p.querySelector('#v3ModGo').click(); };
-  p.querySelector('#v3ModFile').onchange = function(){ modLoadFile(this.files[0]); this.value = ''; };
-  modList();
-  return p;
-}
-function modToggle(open){
-  var p = document.getElementById('v3Mod') || modPanel(), bar = V3.box.querySelector('.v3-bar');
-  p.hidden = (open == null) ? !p.hidden : !open;
-  if(!p.hidden && bar){
-    var br = bar.getBoundingClientRect(), mr = V3.box.getBoundingClientRect();
-    p.style.left = Math.round(br.left - mr.left) + 'px';
-    p.style.top  = Math.round(br.bottom - mr.top + 6) + 'px';
-  }
-  var b = document.getElementById('v3ModBtn');
-  if(b) b.classList.toggle('on', !p.hidden);
-}
-/* models from links in earlier visits come back on their own */
-function modRestore(){
-  var saved = [];
-  try { saved = JSON.parse(localStorage.getItem(MOD_KEY) || '[]') || []; } catch(err){ saved = []; }
-  saved.forEach(function(s){ if(s && s.url) modLoadURL(s.url, { crs:s.crs, col:s.col, op:s.op, on:s.on, name:s.name }, true); });
-}
+/* v3.0.4: models saved by earlier versions are no longer used */
+try { localStorage.removeItem('hrmi3d.models.v1'); } catch(err){}
 
 /* ---- drillhole traces (v2.4) -------------------------------------------------
    Each hole is drawn as a straight line from its collar on the ground down the
@@ -6408,9 +5935,7 @@ function v3Init(){
                          'circle-stroke-color':'#ffffff', 'circle-stroke-width':1.6, 'circle-stroke-opacity':['get', 'o'],
                          'circle-pitch-alignment':'map', 'circle-pitch-scale':'viewport' } });
     try { g.addLayer(BIO3_LAYER); } catch(err){ console.warn('3D view: survey lines unavailable', err); }
-    try { g.addLayer(MOD_LAYER); } catch(err){ console.warn('3D view: models unavailable', err); }
     try { g.addLayer(DTR_LAYER); } catch(err){ console.warn('3D view: drill traces unavailable', err); }
-    modRestore();
     v3Terrain();
     v3Sub();
     v3Sync(true);
@@ -6463,7 +5988,6 @@ function set3D(on){
   } else {
     V3.hov.style.display = 'none';
     clearTimeout(V3.timer);
-    if(document.getElementById('v3Mod')) modToggle(false);
     if(V3.ready){ V3.on = true; v3PushView(); V3.on = false; }
     v3PopDrop();
     map.keyboard.enable();
@@ -6492,10 +6016,7 @@ window.HRMI3D = {
   ready: function(fn){ if(V3.ready) fn(V3.gl); else V3.readyQ.push(fn); },
   map: function(){ return V3.gl; },
   isOn: function(){ return V3.on; },
-  open: function(){ showTab('v3d'); },
-  /* load a DXF from a link: HRMI3D.loadDXF(url, { crs:'utm11' }) */
-  loadDXF: function(url, opt){ HRMI3D.ready(function(){ modLoadURL(url, opt || {}); }); },
-  models: function(){ return MODELS.slice(); }
+  open: function(){ showTab('v3d'); }
 };
 
 /* ---------- Drilling dashboard (v2.4) ---------------------------------------
